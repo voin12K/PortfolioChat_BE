@@ -2,9 +2,13 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
-const app = require('./app');  
+const app = require('./app');
+const connectDB = require('./config/db');  // Убедитесь, что путь правильный
 
 app.use(cors({ origin: "*" }));
+
+// Подключение к базе данных
+connectDB();
 
 const server = http.createServer(app);
 
