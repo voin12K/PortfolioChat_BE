@@ -2,6 +2,7 @@ const http = require('http');
 const mongoose = require('mongoose');
 const app = require('./app');
 
+
 const PORT = 5000;
 const MONGO_URI = 'mongodb+srv://vladleurda02:ree1IndvHO3ZPgOs@main.n0hck.mongodb.net/?retryWrites=true&w=majority&appName=main';
 
