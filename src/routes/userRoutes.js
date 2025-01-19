@@ -14,7 +14,7 @@ router.get('/users', async (req, res) => {
             username: { $regex: username, $options: 'i' }
         })
         .limit(10)
-        .select('username email profileImage description');
+        .select('username name email profileImage description');
 
         if (users.length === 0) {
             return res.status(404).json({ error: 'No users found' });
