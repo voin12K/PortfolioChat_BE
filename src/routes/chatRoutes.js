@@ -1,26 +1,89 @@
 const express = require('express');
 const router = express.Router();
-const { createChat, createMessage } = require('../controllers/chatController');
+const { 
+    handleCreatePrivateChat, 
+    handleCreateGroupChat,
+    handleSendMessage,
+    getUserChats,
+    getChatMessages
+} = require('../controllers/chatController');
+const authMiddleware = require('../middlewares/authMiddleware');
 
-router.post('/create', async (req, res) => {
-    const { userId1, userId2 } = req.body;
+router.use(authMiddleware);
 
+router.post('/private', handleCreatePrivateChat);
+router.post('/group', handleCreateGroupChat);
+router.post('/message', handleSendMessage);
+
+router.get('/my', (req, res) => {
+    req.params.userId = req.user.id;
+    return getUserChats(req, res);
+});
+
+router.get('/user/:userId', async (req, res) => {
+    if (!req.user.isAdmin) {
+        return res.status(403).json({ message: 'Доступ запрещен' });
+    }
+    return getUserChats(req, res);
+});
+
+router.get('/:chatId/messages', getChatMessages);
+
+router.post('/:chatId/read', async (req, res) => {
     try {
-        const chat = await createChat(userId1, userId2);
-        res.status(200).json(chat);
+        const chatId = req.params.chatId;
+        const userId = req.user.id;
+
+        const Chat = require('../models/Chat');
+        const chat = await Chat.findById(chatId);
+        
+        if (!chat) {
+            return res.status(404).json({ message: 'Чат не найден' });
+        }
+        
+        if (!chat.hasMember(userId)) {
+            return res.status(403).json({ message: 'У вас нет доступа к этому чату' });
+        }
+        
+        await chat.markAsRead(userId);
+        res.status(200).json({ success: true });
     } catch (error) {
-        res.status(500).json({ message: 'Error creating chat' });
+        console.error('Error marking messages as read:', error);
+        res.status(500).json({ message: 'Внутренняя ошибка сервера' });
     }
 });
 
-router.post('/message', async (req, res) => {
-    const { chatId, senderId, content } = req.body;
-
+router.put('/:chatId/archive', async (req, res) => {
     try {
-        const message = await createMessage(chatId, senderId, content);
-        res.status(200).json(message);
+        const chatId = req.params.chatId;
+        const userId = req.user.id;
+
+        const Chat = require('../models/Chat');
+        const chat = await Chat.findById(chatId);
+        
+        if (!chat) {
+            return res.status(404).json({ message: 'Чат не найден' });
+        }
+        
+        const userMetaIndex = chat.userMetadata.findIndex(
+            meta => meta.user.toString() === userId.toString()
+        );
+        
+        if (userMetaIndex >= 0) {
+            chat.userMetadata[userMetaIndex].status = 'archived';
+        } else {
+            chat.userMetadata.push({
+                user: userId,
+                status: 'archived',
+                unreadCount: 0
+            });
+        }
+        
+        await chat.save();
+        res.status(200).json({ success: true });
     } catch (error) {
-        res.status(500).json({ message: 'Error creating message' });
+        console.error('Error archiving chat:', error);
+        res.status(500).json({ message: 'Внутренняя ошибка сервера' });
     }
 });
 
