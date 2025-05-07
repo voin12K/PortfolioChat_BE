@@ -33,7 +33,7 @@ const loginUser = async (email, password) => {
         throw new Error('Invalid email or password');
     }
 
-    const token = jwt.sign({ userId: user._id }, 'your_jwt_secret', { expiresIn: '30d' });
+    const token = jwt.sign({ userId: user._id }, '12345', { expiresIn: '30d' });
     return { user, token };
 };
 

@@ -85,24 +85,49 @@ const updateChatWithNewMessage = async (chatId, messageId) => {
  */
 const handleCreatePrivateChat = async (req, res) => {
     try {
-        const { userId1, userId2 } = req.body;
-        
-        if (!userId1 || !userId2) {
-            return res.status(400).json({ message: 'Both user IDs are required' });
-        }
-
-        const chat = await createChat(userId1, userId2);
-        
-        // Populate user info before returning
-        const populatedChat = await Chat.findById(chat._id)
-            .populate('users', 'name username profileImage');
-        
-        res.status(201).json(populatedChat);
+      const { userId1, userId2 } = req.body;
+      
+      // Проверка наличия обоих ID
+      if (!userId1 || !userId2) {
+        return res.status(400).json({ message: 'Both user IDs are required' });
+      }
+  
+      // Проверка существования пользователей
+      const usersExist = await User.countDocuments({ 
+        _id: { $in: [userId1, userId2] } 
+      }) === 2;
+      
+      if (!usersExist) {
+        return res.status(404).json({ message: 'One or both users not found' });
+      }
+  
+      // Проверка существующего чата
+      const existingChat = await Chat.findOne({
+        isGroup: false,
+        members: { $all: [userId1, userId2], $size: 2 }
+      });
+  
+      if (existingChat) {
+        return res.json(existingChat);
+      }
+  
+      // Создание нового чата
+      const newChat = new Chat({
+        isGroup: false,
+        users: [userId1, userId2],
+        userMetadata: [
+          { user: userId1, status: 'active' },
+          { user: userId2, status: 'active' }
+        ]
+      });
+  
+      await newChat.save();
+      res.status(201).json(newChat);
+  
     } catch (error) {
-        console.error('Error handling chat creation:', error);
-        res.status(500).json({ message: error.message || 'Internal server error' });
+      res.status(500).json({ message: error.message });
     }
-};
+  };
 
 /**
  * Create a group chat with multiple users
