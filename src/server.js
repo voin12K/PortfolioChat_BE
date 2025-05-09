@@ -10,7 +10,7 @@ const jwt = require('jsonwebtoken');
 dotenv.config();
 
 const PORT = process.env.PORT || 5000;
-const MONGO_URI = process.env.MONGO_URI;
+const MONGO_URI = 'mongodb+srv://vladleurda02:ree1IndvHO3ZPgOs@main.n0hck.mongodb.net/test?retryWrites=true&w=majority&appName=main';
 
 if (!MONGO_URI) {
   console.error('MongoDB connection string missing! Set MONGO_URI environment variable');

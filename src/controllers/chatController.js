@@ -84,50 +84,53 @@ const updateChatWithNewMessage = async (chatId, messageId) => {
  * HTTP handler for creating or finding private chat
  */
 const handleCreatePrivateChat = async (req, res) => {
-    try {
-      const { userId1, userId2 } = req.body;
-      
-      // Проверка наличия обоих ID
-      if (!userId1 || !userId2) {
-        return res.status(400).json({ message: 'Both user IDs are required' });
-      }
-  
-      // Проверка существования пользователей
-      const usersExist = await User.countDocuments({ 
-        _id: { $in: [userId1, userId2] } 
-      }) === 2;
-      
-      if (!usersExist) {
-        return res.status(404).json({ message: 'One or both users not found' });
-      }
-  
-      // Проверка существующего чата
-      const existingChat = await Chat.findOne({
-        isGroup: false,
-        members: { $all: [userId1, userId2], $size: 2 }
-      });
-  
-      if (existingChat) {
-        return res.json(existingChat);
-      }
-  
-      // Создание нового чата
-      const newChat = new Chat({
-        isGroup: false,
-        users: [userId1, userId2],
-        userMetadata: [
-          { user: userId1, status: 'active' },
-          { user: userId2, status: 'active' }
-        ]
-      });
-  
-      await newChat.save();
-      res.status(201).json(newChat);
-  
-    } catch (error) {
-      res.status(500).json({ message: error.message });
+  try {
+    const { userId1, userId2 } = req.body;
+
+    if (!userId1 || !userId2) {
+      return res.status(400).json({ message: 'Both user IDs are required' });
     }
-  };
+
+    // Проверка валидности ID
+    if (!mongoose.Types.ObjectId.isValid(userId1) || !mongoose.Types.ObjectId.isValid(userId2)) {
+      return res.status(400).json({ message: 'Invalid user ID format' });
+    }
+
+    // Проверка существования пользователей
+    const usersExist = await User.countDocuments({ _id: { $in: [userId1, userId2] } }) === 2;
+    if (!usersExist) {
+      return res.status(404).json({ message: 'One or both users not found' });
+    }
+
+    // Проверка существующего чата
+    const existingChat = await Chat.findOne({
+      isGroup: false,
+      users: { $all: [userId1, userId2] },
+      $expr: { $eq: [{ $size: "$users" }, 2] }
+    });
+
+    if (existingChat) {
+      return res.json(existingChat);
+    }
+
+    // Создание нового чата (users отсортированы)
+    const newChat = new Chat({
+      isGroup: false,
+      users: [userId1, userId2].sort(),
+      userMetadata: [
+        { user: userId1, status: 'active' },
+        { user: userId2, status: 'active' }
+      ]
+    });
+
+    await newChat.save();
+    res.status(201).json(newChat);
+
+  } catch (error) {
+    console.error('Ошибка при создании чата:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
 
 /**
  * Create a group chat with multiple users
