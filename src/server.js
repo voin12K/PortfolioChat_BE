@@ -9,6 +9,8 @@ const jwt = require('jsonwebtoken');
 
 dotenv.config();
 
+const JWT_SECRET = '12345'
+
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = 'mongodb+srv://vladleurda02:ree1IndvHO3ZPgOs@main.n0hck.mongodb.net/test?retryWrites=true&w=majority&appName=main';
 
@@ -53,10 +55,10 @@ const socketAuthMiddleware = async (socket, next) => {
   try {
     const token = socket.handshake.auth.token;
     if (!token) {
-      return next(new Error('Authentication error'));
+      return next(new Error('Authentication error: Token is missing'));
     }
     
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || "12345");
     socket.user = decoded;
     next();
   } catch (error) {
@@ -99,27 +101,30 @@ io.on('connection', (socket) => {
     socket.to(chatId).emit('userLeft', { userId: socket.user.id, chatId });
   });
 
-  socket.on('sendMessage', async ({ chatId, content, messageType = 'text', attachments = [] }, callback) => {
-    try {
-      if (!socket.user) {
-        socket.emit('error', { message: 'Authentication required' });
-        return;
-      }
-      
-      if (!content || content.trim() === '') {
-        socket.emit('error', { message: 'Message content cannot be empty' });
-        return;
-      }
-      
-      const newMessage = await createMessage(chatId, socket.user.id, content, messageType, attachments);
-      io.to(chatId).emit('newMessage', newMessage);
-      
-      if (callback) callback({ success: true, messageId: newMessage._id });
-    } catch (error) {
-      socket.emit('error', { message: 'Failed to send message' });
-      if (callback) callback({ success: false, error: 'Failed to send message' });
+socket.on('sendMessage', async ({ chatId, content, messageType = 'text', attachments = [] }, callback) => {
+  try {
+    if (!socket.user) {
+      socket.emit('error', { message: 'Authentication required' });
+      return;
     }
-  });
+    
+    if (!content || content.trim() === '') {
+      socket.emit('error', { message: 'Message content cannot be empty' });
+      return;
+    }
+    
+    const newMessage = await createMessage(chatId, socket.user.id, content, messageType, attachments);
+
+    const populatedMessage = await newMessage.populate('sender', 'username _id');
+
+    io.to(chatId).emit('newMessage', populatedMessage);
+
+    if (callback) callback({ success: true, messageId: populatedMessage._id });
+  } catch (error) {
+    socket.emit('error', { message: 'Failed to send message' });
+    if (callback) callback({ success: false, error: 'Failed to send message' });
+  }
+});
 
   socket.on('typing', ({ chatId, isTyping }) => {
     socket.to(chatId).emit('userTyping', {

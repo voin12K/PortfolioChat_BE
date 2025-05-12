@@ -235,16 +235,29 @@ const getChatMessages = async (req, res) => {
     try {
         const { chatId } = req.params;
         const { limit = 50, page = 1 } = req.query;
-        
+
         const skip = (page - 1) * limit;
-        
-        const messages = await Message.find({ chat: chatId })
-            .populate('sender', 'name username profileImage')
-            .sort({ createdAt: -1 })
-            .skip(skip)
-            .limit(Number(limit));
-            
-        res.status(200).json(messages.reverse()); // Reverse to get chronological order
+
+        // Получение чата с сообщениями
+        const chat = await Chat.findById(chatId)
+            .populate({
+                path: 'messages',
+                options: {
+                    sort: { createdAt: 1 }, // Сортировка сообщений по дате
+                    skip: skip,
+                    limit: Number(limit),
+                },
+                populate: {
+                    path: 'sender', // Загрузка информации об отправителе
+                    select: 'name username profileImage',
+                },
+            });
+
+        if (!chat) {
+            return res.status(404).json({ message: 'Chat not found' });
+        }
+
+        res.status(200).json(chat.messages);
     } catch (error) {
         console.error('Error fetching messages:', error);
         res.status(500).json({ message: 'Internal server error' });

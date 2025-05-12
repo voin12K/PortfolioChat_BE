@@ -30,7 +30,7 @@ const messageSchema = new mongoose.Schema({
     systemMessageType: {
         type: String,
         enum: ['userJoined', 'userLeft', 'groupCreated', 'groupRenamed', 'userAdded', 'userRemoved'],
-        default: null
+        required: false
     },
     status: {
         type: String,
