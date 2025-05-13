@@ -1,8 +1,9 @@
 const jwt = require('jsonwebtoken');
+const User = require('../models/User'); // Добавь это
 
 const JWT_SECRET = '12345';
 
-const authMiddleware = (req, res, next) => {
+const authMiddleware = async (req, res, next) => {
     const authHeader = req.headers['authorization'];
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -13,12 +14,18 @@ const authMiddleware = (req, res, next) => {
     
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
-        
+
         if (decoded.exp && decoded.exp < Date.now() / 1000) {
             return res.status(401).json({ error: 'Token expired' });
         }
 
-        req.user = decoded;
+        const user = await User.findById(decoded.id); // <--- загружаем пользователя из БД
+
+        if (!user) {
+            return res.status(401).json({ error: 'User not found' });
+        }
+
+        req.user = user; // сохраняем не payload, а объект пользователя
         next();
     } catch (error) {
         console.error('JWT Verification Error:', error.message);
