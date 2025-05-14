@@ -38,24 +38,40 @@ const createChat = async (userId1, userId2) => {
 /**
  * Helper function to create a message
  */
-const createMessage = async (chatId, senderId, content) => {
+const createMessage = async (chatId, senderId, content, messageType = 'text', attachments = [], replyTo = null) => {
     try {
         // Input validation
         if (!content || !content.trim()) {
             throw new Error('Message content cannot be empty');
         }
 
+        // Проверяем, существует ли сообщение, на которое идет ответ
+        let replyToMessage = null;
+        if (replyTo) {
+            replyToMessage = await Message.findById(replyTo);
+            if (!replyToMessage) {
+                throw new Error('Reply-to message not found');
+            }
+        }
+
         const newMessage = new Message({
             chat: chatId,
             sender: senderId,
             content: content.trim(),
+            replyTo: replyToMessage ? replyToMessage._id : null, // Сохраняем ссылку на сообщение
+            messageType,
+            attachments,
         });
 
         await newMessage.save();
 
+        // Обновляем чат с новым сообщением
         await updateChatWithNewMessage(chatId, newMessage._id);
 
-        return newMessage;
+        // Возвращаем экземпляр модели с доступными методами populate
+        return await Message.findById(newMessage._id)
+            .populate('sender', 'username _id')
+            .populate('replyTo', 'content sender');
     } catch (error) {
         console.error('Error creating message:', error);
         throw new Error('Internal server error');
@@ -238,19 +254,18 @@ const getChatMessages = async (req, res) => {
 
         const skip = (page - 1) * limit;
 
-        // Получение чата с сообщениями
         const chat = await Chat.findById(chatId)
             .populate({
                 path: 'messages',
                 options: {
-                    sort: { createdAt: 1 }, // Сортировка сообщений по дате
+                    sort: { createdAt: 1 },
                     skip: skip,
                     limit: Number(limit),
                 },
-                populate: {
-                    path: 'sender', // Загрузка информации об отправителе
-                    select: 'name username profileImage',
-                },
+                populate: [
+                    { path: 'sender', select: 'name username profileImage' },
+                    { path: 'replyTo', select: 'content sender', populate: { path: 'sender', select: 'username' } }, // Подгружаем `replyTo`
+                ],
             });
 
         if (!chat) {

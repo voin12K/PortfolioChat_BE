@@ -6,6 +6,7 @@ const dotenv = require('dotenv');
 const { createMessage } = require('./controllers/chatController');
 const Chat = require('./models/Chat');
 const jwt = require('jsonwebtoken');
+const MessageModel = require('./models/Message'); 
 
 dotenv.config();
 
@@ -101,26 +102,36 @@ io.on('connection', (socket) => {
     socket.to(chatId).emit('userLeft', { userId: socket.user.id, chatId });
   });
 
-socket.on('sendMessage', async ({ chatId, content, messageType = 'text', attachments = [] }, callback) => {
+socket.on('sendMessage', async ({ chatId, content, messageType = 'text', attachments = [], replyTo = null }, callback) => {
   try {
     if (!socket.user) {
-      socket.emit('error', { message: 'Authentication required' });
+      if (callback) callback({ success: false, error: 'Authentication required' });
       return;
     }
     
     if (!content || content.trim() === '') {
-      socket.emit('error', { message: 'Message content cannot be empty' });
+      if (callback) callback({ success: false, error: 'Message content cannot be empty' });
       return;
     }
     
-    const newMessage = await createMessage(chatId, socket.user.id, content, messageType, attachments);
+    // Создаём сообщение
+    const newMessage = await createMessage(chatId, socket.user.id, content, messageType, attachments, replyTo);
 
-    const populatedMessage = await newMessage.populate('sender', 'username _id');
+    // Получаем экземпляр модели с методами populate
+    const populatedMessage = await MessageModel.findById(newMessage._id)
+      .populate('sender', 'username _id')
+      .populate({
+        path: 'replyTo',
+        populate: { path: 'sender', select: 'username _id' }, // Заполняем данные отправителя сообщения, на которое отвечаем
+      });
 
+    // Отправляем сообщение в чат
     io.to(chatId).emit('newMessage', populatedMessage);
 
+    // Возвращаем успешный ответ
     if (callback) callback({ success: true, messageId: populatedMessage._id });
   } catch (error) {
+    console.error('Error in sendMessage:', error); // Логирование ошибки для отладки
     socket.emit('error', { message: 'Failed to send message' });
     if (callback) callback({ success: false, error: 'Failed to send message' });
   }
