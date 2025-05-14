@@ -148,27 +148,34 @@ router.delete('/:messageId', async (req, res) => {
     try {
         const { messageId } = req.params;
         const userId = req.user.id;
-        
+
         const message = await Message.findById(messageId);
-        
         if (!message) {
+            console.log('Message not found');
             return res.status(404).json({ message: 'Сообщение не найдено' });
         }
-        
+
         const chat = await Chat.findById(message.chat);
+        if (!chat) {
+            console.log('Chat not found');
+            return res.status(404).json({ message: 'Чат не найден' });
+        }
+
         const isAdmin = chat && chat.isAdmin(userId);
-        
         if (message.sender.toString() !== userId && !isAdmin) {
             return res.status(403).json({ message: 'У вас нет прав на удаление этого сообщения' });
         }
-        
-        message.deleted = {
-            isDeleted: true,
-            deletedAt: new Date()
-        };
-        
-        await message.save();
-        
+
+
+        const deletedMessage = await Message.findByIdAndDelete(messageId);
+
+
+        if (req.io && chat._id) {
+            req.io.to(chat._id).emit("messageDeleted", { messageId });
+        } else {
+            console.log('WebSocket or Chat ID is not properly configured');
+        }
+
         res.json({ success: true, message: 'Сообщение удалено' });
     } catch (error) {
         console.error('Error deleting message:', error);

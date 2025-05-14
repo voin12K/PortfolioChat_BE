@@ -152,6 +152,15 @@ socket.on('sendMessage', async ({ chatId, content, messageType = 'text', attachm
     }
   });
 
+  socket.on("deleteMessage", async ({ messageId }) => {
+    try {
+      await MessageModel.findByIdAndDelete(messageId);
+      socket.to(chatId).emit("messageDeleted", { messageId });
+    } catch (error) {
+      console.error("Error deleting message:", error);
+    }
+  });
+
   socket.on('disconnect', () => {
     if (socket.user?.id) {
       activeUsers.delete(socket.user.id);
