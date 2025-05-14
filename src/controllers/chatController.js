@@ -234,7 +234,7 @@ const getUserChats = async (req, res) => {
 const getChatMessages = async (req, res) => {
     try {
         const { chatId } = req.params;
-        const { limit = 50, page = 1 } = req.query;
+        const { limit = 500, page = 1 } = req.query;
 
         const skip = (page - 1) * limit;
 
