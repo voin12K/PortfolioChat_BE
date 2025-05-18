@@ -6,14 +6,12 @@ const authMiddleware = require('../middlewares/authMiddleware');
 const cloudinary = require('cloudinary').v2;
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
-// 1. Настройка Cloudinary
 cloudinary.config({
   cloud_name: "dxx51nrfo",
   api_key: "667453156811916",
   api_secret: "ce6IBYS3_OV_D2HTLiNJG0Yn-Qg",
 });
 
-// 2. Настройка Multer + Cloudinary
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
     params: {
@@ -21,7 +19,7 @@ const storage = new CloudinaryStorage({
     allowed_formats: ['jpg', 'jpeg', 'png', 'gif'],
     public_id: (req, file) => {
         const id = `avatar_${req.user.id}_${Date.now()}`;
-        req.publicImageId = `user_avatars/${id}`; // <-- сохраняем public_id
+        req.publicImageId = `user_avatars/${id}`; 
         return id;
     },
     }
@@ -29,7 +27,7 @@ const storage = new CloudinaryStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // Лимит 5MB
+  limits: { fileSize: 5 * 1024 * 1024 }, 
   fileFilter: (req, file, cb) => {
     if (!file.mimetype.startsWith('image/')) {
       return cb(new Error('Only image files are allowed!'), false);
@@ -38,7 +36,6 @@ const upload = multer({
   },
 });
 
-// 3. Обновление профиля с загрузкой в Cloudinary
 router.put('/profile', authMiddleware, upload.single('avatar'), async (req, res) => {
   try {
     const { name, username } = req.body;
@@ -46,13 +43,10 @@ router.put('/profile', authMiddleware, upload.single('avatar'), async (req, res)
 
     if (name) updates.name = name;
 
-    // Проверка уникальности username, если он передан
     if (username) {
       const existingUser = await User.findOne({ username });
 
-      // Если найден другой пользователь с таким же username (и это не текущий пользователь)
       if (existingUser && existingUser._id.toString() !== req.user.id) {
-        // Удалим загруженный аватар, если он есть, чтобы не остался "мусор"
         if (req.file && req.publicImageId) {
           await cloudinary.uploader.destroy(req.publicImageId);
         }
@@ -63,7 +57,6 @@ router.put('/profile', authMiddleware, upload.single('avatar'), async (req, res)
       updates.username = username;
     }
 
-    // Сохраняем URL аватара, если загружен
     if (req.file) {
       updates.profileImage = req.file.path;
     }
@@ -90,7 +83,6 @@ router.put('/profile', authMiddleware, upload.single('avatar'), async (req, res)
 });
 
 
-// 4. Поиск пользователей (без изменений)
 router.get('/users', async (req, res) => {
   const { username } = req.query;
 

@@ -37,7 +37,7 @@ app.use((req, res, next) => {
 app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(err.status || 500).json({
-        message: err.message || 'Внутренняя ошибка сервера'
+        message: err.message || 'error'
     });
 });
 

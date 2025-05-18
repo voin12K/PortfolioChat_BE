@@ -62,7 +62,7 @@ router.put('/:chatId/archive', async (req, res) => {
         const chat = await Chat.findById(chatId);
         
         if (!chat) {
-            return res.status(404).json({ message: 'Чат не найден' });
+            return res.status(404).json({ message: 'Chat not found' });
         }
         
         const userMetaIndex = chat.userMetadata.findIndex(
@@ -83,7 +83,7 @@ router.put('/:chatId/archive', async (req, res) => {
         res.status(200).json({ success: true });
     } catch (error) {
         console.error('Error archiving chat:', error);
-        res.status(500).json({ message: 'Внутренняя ошибка сервера' });
+        res.status(500).json({ message: 'error' });
     }
 });
 

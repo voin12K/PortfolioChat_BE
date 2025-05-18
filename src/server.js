@@ -114,24 +114,20 @@ socket.on('sendMessage', async ({ chatId, content, messageType = 'text', attachm
       return;
     }
     
-    // Создаём сообщение
     const newMessage = await createMessage(chatId, socket.user.id, content, messageType, attachments, replyTo);
 
-    // Получаем экземпляр модели с методами populate
     const populatedMessage = await MessageModel.findById(newMessage._id)
       .populate('sender', 'username _id')
       .populate({
         path: 'replyTo',
-        populate: { path: 'sender', select: 'username _id' }, // Заполняем данные отправителя сообщения, на которое отвечаем
+        populate: { path: 'sender', select: 'username _id' },
       });
 
-    // Отправляем сообщение в чат
     io.to(chatId).emit('newMessage', populatedMessage);
 
-    // Возвращаем успешный ответ
     if (callback) callback({ success: true, messageId: populatedMessage._id });
   } catch (error) {
-    console.error('Error in sendMessage:', error); // Логирование ошибки для отладки
+    console.error('Error in sendMessage:', error);
     socket.emit('error', { message: 'Failed to send message' });
     if (callback) callback({ success: false, error: 'Failed to send message' });
   }

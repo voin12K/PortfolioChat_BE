@@ -3,12 +3,8 @@ const Message = require('../models/Message');
 const User = require('../models/User');
 const mongoose = require('mongoose');
 
-/**
- * Helper function to create or find a private chat between two users
- */
 const createChat = async (userId1, userId2) => {
     try {
-        // Validate user IDs
         if (!mongoose.Types.ObjectId.isValid(userId1) || !mongoose.Types.ObjectId.isValid(userId2)) {
             throw new Error('Invalid user ID format');
         }
@@ -35,17 +31,12 @@ const createChat = async (userId1, userId2) => {
     }
 };
 
-/**
- * Helper function to create a message
- */
 const createMessage = async (chatId, senderId, content, messageType = 'text', attachments = [], replyTo = null) => {
     try {
-        // Input validation
         if (!content || !content.trim()) {
             throw new Error('Message content cannot be empty');
         }
 
-        // Проверяем, существует ли сообщение, на которое идет ответ
         let replyToMessage = null;
         if (replyTo) {
             replyToMessage = await Message.findById(replyTo);
@@ -58,17 +49,15 @@ const createMessage = async (chatId, senderId, content, messageType = 'text', at
             chat: chatId,
             sender: senderId,
             content: content.trim(),
-            replyTo: replyToMessage ? replyToMessage._id : null, // Сохраняем ссылку на сообщение
+            replyTo: replyToMessage ? replyToMessage._id : null,
             messageType,
             attachments,
         });
 
         await newMessage.save();
 
-        // Обновляем чат с новым сообщением
         await updateChatWithNewMessage(chatId, newMessage._id);
 
-        // Возвращаем экземпляр модели с доступными методами populate
         return await Message.findById(newMessage._id)
             .populate('sender', 'username _id')
             .populate('replyTo', 'content sender');
@@ -96,9 +85,6 @@ const updateChatWithNewMessage = async (chatId, messageId) => {
     }
 };
 
-/**
- * HTTP handler for creating or finding private chat
- */
 const handleCreatePrivateChat = async (req, res) => {
   try {
     const { userId1, userId2 } = req.body;
@@ -107,18 +93,15 @@ const handleCreatePrivateChat = async (req, res) => {
       return res.status(400).json({ message: 'Both user IDs are required' });
     }
 
-    // Проверка валидности ID
     if (!mongoose.Types.ObjectId.isValid(userId1) || !mongoose.Types.ObjectId.isValid(userId2)) {
       return res.status(400).json({ message: 'Invalid user ID format' });
     }
 
-    // Проверка существования пользователей
     const usersExist = await User.countDocuments({ _id: { $in: [userId1, userId2] } }) === 2;
     if (!usersExist) {
       return res.status(404).json({ message: 'One or both users not found' });
     }
 
-    // Проверка существующего чата
     const existingChat = await Chat.findOne({
       isGroup: false,
       users: { $all: [userId1, userId2] },
@@ -129,7 +112,6 @@ const handleCreatePrivateChat = async (req, res) => {
       return res.json(existingChat);
     }
 
-    // Создание нового чата (users отсортированы)
     const newChat = new Chat({
       isGroup: false,
       users: [userId1, userId2].sort(),
@@ -143,18 +125,15 @@ const handleCreatePrivateChat = async (req, res) => {
     res.status(201).json(newChat);
 
   } catch (error) {
-    console.error('Ошибка при создании чата:', error);
+    console.error('Error:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
 
-/**
- * Create a group chat with multiple users
- */
 const handleCreateGroupChat = async (req, res) => {
     try {
         const { name, userIds } = req.body;
-        const creatorId = req.user?.id; // Assuming auth middleware
+        const creatorId = req.user?.id; 
         
         if (!name || !name.trim()) {
             return res.status(400).json({ message: 'Group name is required' });
@@ -164,7 +143,6 @@ const handleCreateGroupChat = async (req, res) => {
             return res.status(400).json({ message: 'At least 2 users are required' });
         }
 
-        // Create the group chat
         const newGroupChat = new Chat({
             name: name.trim(),
             users: userIds,
@@ -184,9 +162,6 @@ const handleCreateGroupChat = async (req, res) => {
     }
 };
 
-/**
- * HTTP handler for sending messages
- */
 const handleSendMessage = async (req, res) => {
     try {
         const { chatId, senderId, content } = req.body;
@@ -195,7 +170,6 @@ const handleSendMessage = async (req, res) => {
             return res.status(400).json({ message: 'Chat ID, sender ID, and content are required' });
         }
 
-        // Check if user is part of the chat
         const chat = await Chat.findOne({
             _id: chatId,
             users: senderId
@@ -207,7 +181,6 @@ const handleSendMessage = async (req, res) => {
 
         const message = await createMessage(chatId, senderId, content);
         
-        // Populate sender info before returning
         const populatedMessage = await Message.findById(message._id)
             .populate('sender', 'name username profileImage');
             
@@ -218,9 +191,6 @@ const handleSendMessage = async (req, res) => {
     }
 };
 
-/**
- * Get all chats for a user
- */
 const getUserChats = async (req, res) => {
     try {
         const userId = req.params.userId;
@@ -244,9 +214,6 @@ const getUserChats = async (req, res) => {
     }
 };
 
-/**
- * Get chat messages
- */
 const getChatMessages = async (req, res) => {
     try {
         const { chatId } = req.params;
@@ -264,7 +231,7 @@ const getChatMessages = async (req, res) => {
                 },
                 populate: [
                     { path: 'sender', select: 'name username profileImage' },
-                    { path: 'replyTo', select: 'content sender', populate: { path: 'sender', select: 'username' } }, // Подгружаем `replyTo`
+                    { path: 'replyTo', select: 'content sender', populate: { path: 'sender', select: 'username' } }, 
                 ],
             });
 
@@ -280,12 +247,10 @@ const getChatMessages = async (req, res) => {
 };
 
 module.exports = { 
-    // Original helper functions 
     createChat, 
     createMessage,
     updateChatWithNewMessage,
     
-    // New HTTP handlers
     handleCreatePrivateChat,
     handleCreateGroupChat,
     handleSendMessage,
