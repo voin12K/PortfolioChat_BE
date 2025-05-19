@@ -79,7 +79,18 @@ const login = async (req, res) => {
             { expiresIn: '7d' }
         );
 
-        res.status(200).json({ message: 'Login successful', token });
+        res.status(200).json({ 
+            message: 'Login successful', 
+            token, 
+            user: {
+                _id: user._id,
+                name: user.name,
+                username: user.username,
+                email: user.email,
+                profileImage: user.profileImage,
+                description: user.description
+            }
+        });
     } catch (error) {
         console.error('Error in login controller:', error.message);
         res.status(500).json({ error: 'Internal server error' });
