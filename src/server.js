@@ -117,10 +117,10 @@ socket.on('sendMessage', async ({ chatId, content, messageType = 'text', attachm
     const newMessage = await createMessage(chatId, socket.user.id, content, messageType, attachments, replyTo);
 
     const populatedMessage = await MessageModel.findById(newMessage._id)
-      .populate('sender', 'username _id')
+      .populate('sender', 'username _id profileImage')
       .populate({
         path: 'replyTo',
-        populate: { path: 'sender', select: 'username _id' },
+        populate: { path: 'sender', select: 'username _id profileImage' },
       });
 
     io.to(chatId).emit('newMessage', populatedMessage);
