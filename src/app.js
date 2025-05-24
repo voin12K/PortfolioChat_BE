@@ -10,7 +10,7 @@ const cors = require('cors');
 
 
 const corsOptions = {
-    origin: process.env.CLIENT_URL || ['https://portfolio-chat-fe-dglb.vercel.app'],
+    origin: process.env.CLIENT_URL || ['https://portfolio-chat-fe-7si8.vercel.app/'],
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true, 
 };
