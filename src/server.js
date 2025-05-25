@@ -47,7 +47,8 @@ const server = http.createServer(app);
 
 const io = socketIo(server, {
   cors: {
-    origin: process.env.CLIENT_URL || "https://portfolio-chat-fe-7si8.vercel.app",
+origin: "https://portfolio-chat-maebeklkw-voin12ks-projects.vercel.app",
+
     methods: ["GET", "POST"]
   }
 });
