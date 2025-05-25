@@ -8,13 +8,15 @@ const chatRoutes = require('./routes/chatRoutes');
 const messageRoutes = require('./routes/messageRoutes');
 const cors = require('cors');
 
-
 const corsOptions = {
-    origin: process.env.CLIENT_URL || ['http://localhost:3000'],
+    origin: [
+        'http://localhost:3000',
+        'https://portfolio-chat-1cm4jjrih-voin12ks-projects.vercel.app',
+        'https://portfolio-chat-fe-mu.vercel.app'
+    ],
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true, 
 };
-
 
 app.use(helmet()); 
 app.use(express.json());

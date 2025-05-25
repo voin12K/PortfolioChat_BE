@@ -2,23 +2,21 @@ const http = require('http');
 const mongoose = require('mongoose');
 const app = require('./app');
 const socketIo = require('socket.io');
-const dotenv = require('dotenv');
 const { createMessage } = require('./controllers/chatController');
 const Chat = require('./models/Chat');
 const jwt = require('jsonwebtoken');
 const MessageModel = require('./models/Message'); 
 
-dotenv.config();
-
-const JWT_SECRET = '12345'
-
-const PORT = process.env.PORT || 5000;
+// Константы вместо process.env
+const JWT_SECRET = '12345';
+const PORT = 5000;
 const MONGO_URI = 'mongodb+srv://vladleurda02:ree1IndvHO3ZPgOs@main.n0hck.mongodb.net/test?retryWrites=true&w=majority&appName=main';
-
-if (!MONGO_URI) {
-  console.error('MongoDB connection string missing! Set MONGO_URI environment variable');
-  process.exit(1);
-}
+const ALLOWED_ORIGINS = [
+  'http://localhost:3000',
+  'https://portfolio-chat-1cm4jjrih-voin12ks-projects.vercel.app',
+  'https://portfolio-chat-fe-mu.vercel.app',
+  'https://portfolio-chat-fe-7si8.vercel.app'
+];
 
 const connectDB = async () => {
   try {
@@ -44,11 +42,12 @@ mongoose.connection.on('disconnected', () => {
 });
 
 const server = http.createServer(app);
- 
+
 const io = socketIo(server, {
   cors: {
-    origin: process.env.CLIENT_URL || "http://localhost:3000",
-    methods: ["GET", "POST"]
+    origin: ALLOWED_ORIGINS,
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
 
@@ -59,7 +58,7 @@ const socketAuthMiddleware = async (socket, next) => {
       return next(new Error('Authentication error: Token is missing'));
     }
     
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || "12345");
+    const decoded = jwt.verify(token, JWT_SECRET);
     socket.user = decoded;
     next();
   } catch (error) {
@@ -102,36 +101,36 @@ io.on('connection', (socket) => {
     socket.to(chatId).emit('userLeft', { userId: socket.user.id, chatId });
   });
 
-socket.on('sendMessage', async ({ chatId, content, messageType = 'text', attachments = [], replyTo = null }, callback) => {
-  try {
-    if (!socket.user) {
-      if (callback) callback({ success: false, error: 'Authentication required' });
-      return;
+  socket.on('sendMessage', async ({ chatId, content, messageType = 'text', attachments = [], replyTo = null }, callback) => {
+    try {
+      if (!socket.user) {
+        if (callback) callback({ success: false, error: 'Authentication required' });
+        return;
+      }
+      
+      if (!content || content.trim() === '') {
+        if (callback) callback({ success: false, error: 'Message content cannot be empty' });
+        return;
+      }
+      
+      const newMessage = await createMessage(chatId, socket.user.id, content, messageType, attachments, replyTo);
+
+      const populatedMessage = await MessageModel.findById(newMessage._id)
+        .populate('sender', 'username _id profileImage')
+        .populate({
+          path: 'replyTo',
+          populate: { path: 'sender', select: 'username _id profileImage' },
+        });
+
+      io.to(chatId).emit('newMessage', populatedMessage);
+
+      if (callback) callback({ success: true, messageId: populatedMessage._id });
+    } catch (error) {
+      console.error('Error in sendMessage:', error);
+      socket.emit('error', { message: 'Failed to send message' });
+      if (callback) callback({ success: false, error: 'Failed to send message' });
     }
-    
-    if (!content || content.trim() === '') {
-      if (callback) callback({ success: false, error: 'Message content cannot be empty' });
-      return;
-    }
-    
-    const newMessage = await createMessage(chatId, socket.user.id, content, messageType, attachments, replyTo);
-
-    const populatedMessage = await MessageModel.findById(newMessage._id)
-      .populate('sender', 'username _id profileImage')
-      .populate({
-        path: 'replyTo',
-        populate: { path: 'sender', select: 'username _id profileImage' },
-      });
-
-    io.to(chatId).emit('newMessage', populatedMessage);
-
-    if (callback) callback({ success: true, messageId: populatedMessage._id });
-  } catch (error) {
-    console.error('Error in sendMessage:', error);
-    socket.emit('error', { message: 'Failed to send message' });
-    if (callback) callback({ success: false, error: 'Failed to send message' });
-  }
-});
+  });
 
   socket.on('typing', ({ chatId, isTyping }) => {
     socket.to(chatId).emit('userTyping', {
