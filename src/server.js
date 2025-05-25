@@ -47,7 +47,7 @@ const server = http.createServer(app);
  
 const io = socketIo(server, {
   cors: {
-    origin: process.env.CLIENT_URL || "http://localhost:3000",
+    origin: process.env.CLIENT_URL || "https://chat-opal-eta.vercel.app",
     methods: ["GET", "POST"]
   }
 });
