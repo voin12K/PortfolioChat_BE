@@ -27,6 +27,10 @@ app.use('/api/users', userRoutes);
 app.use('/api/chats', chatRoutes);
 app.use('/api/messages', messageRoutes);
 
+app.get('/', (req, res) => {
+  res.send('API is running');
+});
+
 app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok' });
 });
