@@ -68,6 +68,7 @@ const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
     origin: function(origin, callback) {
+      console.log('Socket.IO CORS origin:', origin);  // <-- Логируем origin запроса
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
@@ -78,6 +79,7 @@ const io = socketIo(server, {
     credentials: true,
   }
 });
+
 
 // Middleware аутентификации Socket.IO
 const socketAuthMiddleware = async (socket, next) => {
