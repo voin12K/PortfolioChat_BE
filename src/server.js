@@ -70,7 +70,7 @@ const io = socketIo(server, {
     origin: function(origin, callback) {
       console.log('Socket.IO CORS origin:', origin);  // <-- Логируем origin запроса
       if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
+        callback(null, origin);
       } else {
         callback(new Error('Not allowed by CORS'));
       }

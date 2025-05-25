@@ -16,9 +16,9 @@ const allowedOrigins = [
 
 const corsOptions = {
   origin: function(origin, callback) {
-    if (!origin) return callback(null, true); // разрешить запросы без origin (Postman, curl)
+    if (!origin) return callback(null, true); // для запросов без origin (Postman, curl)
     if (allowedOrigins.includes(origin)) {
-      callback(null, true);
+      callback(null, origin);  // <- здесь вернуть origin, а не true!
     } else {
       callback(new Error('Not allowed by CORS'));
     }
@@ -26,6 +26,7 @@ const corsOptions = {
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   credentials: true,
 };
+
 
 app.use(helmet());
 app.use(express.json());
