@@ -79,7 +79,7 @@ const login = async (req, res) => {
             { expiresIn: '7d' }
         );
 
-        res.status(200).json({ 
+         res.status(200).json({ 
             message: 'Login successful', 
             token, 
             user: {
@@ -90,7 +90,7 @@ const login = async (req, res) => {
                 profileImage: user.profileImage,
                 description: user.description
             }
-        });
+        });    
     } catch (error) {
         console.error('Error in login controller:', error.message);
         res.status(500).json({ error: 'Internal server error' });
@@ -102,3 +102,12 @@ const protectedRouteHandler = (req, res) => {
 };
 
 module.exports = { register, login, protectedRouteHandler };
+
+
+
+
+
+
+
+
+

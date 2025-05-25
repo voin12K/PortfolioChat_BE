@@ -7,19 +7,39 @@ const { createMessage } = require('./controllers/chatController');
 const Chat = require('./models/Chat');
 const jwt = require('jsonwebtoken');
 const MessageModel = require('./models/Message'); 
+const cors = require('cors');
 
 dotenv.config();
 
-const JWT_SECRET = '12345'
-
+const JWT_SECRET = process.env.JWT_SECRET || '12345';
 const PORT = process.env.PORT || 5000;
-const MONGO_URI = 'mongodb+srv://vladleurda02:ree1IndvHO3ZPgOs@main.n0hck.mongodb.net/test?retryWrites=true&w=majority&appName=main';
+const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://vladleurda02:ree1IndvHO3ZPgOs@main.n0hck.mongodb.net/test?retryWrites=true&w=majority&appName=main';
 
-if (!MONGO_URI) {
-  console.error('MongoDB connection string missing! Set MONGO_URI environment variable');
-  process.exit(1);
-}
+// Разрешённые домены фронтенда
+const allowedOrigins = [
+  'https://portfolio-chat-fe-mu.vercel.app',
+  'https://portfolio-chat-fe-7si8.vercel.app',
+  'http://localhost:3000'
+];
 
+// CORS для Express
+const corsOptions = {
+  origin: function(origin, callback) {
+    if (!origin) return callback(null, true); // для серверных запросов, curl, Postman и т.п.
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // preflight OPTIONS запросы
+
+// Подключение к базе
 const connectDB = async () => {
   try {
     await mongoose.connect(MONGO_URI, {
@@ -47,19 +67,29 @@ const server = http.createServer(app);
  
 const io = socketIo(server, {
   cors: {
-    origin: process.env.CLIENT_URL || "http://localhost:3000",
-    methods: ["GET", "POST"]
+    origin: function(origin, callback) {
+      console.log('Socket.IO CORS origin:', origin);  // <-- Логируем origin запроса
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, origin);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    methods: ["GET", "POST"],
+    credentials: true,
   }
 });
 
+
+// Middleware аутентификации Socket.IO
 const socketAuthMiddleware = async (socket, next) => {
-  try {
+  try { 
     const token = socket.handshake.auth.token;
     if (!token) {
       return next(new Error('Authentication error: Token is missing'));
     }
     
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || "12345");
+    const decoded = jwt.verify(token, JWT_SECRET);
     socket.user = decoded;
     next();
   } catch (error) {
@@ -102,36 +132,36 @@ io.on('connection', (socket) => {
     socket.to(chatId).emit('userLeft', { userId: socket.user.id, chatId });
   });
 
-socket.on('sendMessage', async ({ chatId, content, messageType = 'text', attachments = [], replyTo = null }, callback) => {
-  try {
-    if (!socket.user) {
-      if (callback) callback({ success: false, error: 'Authentication required' });
-      return;
+  socket.on('sendMessage', async ({ chatId, content, messageType = 'text', attachments = [], replyTo = null }, callback) => {
+    try {
+      if (!socket.user) {
+        if (callback) callback({ success: false, error: 'Authentication required' });
+        return;
+      }
+      
+      if (!content || content.trim() === '') {
+        if (callback) callback({ success: false, error: 'Message content cannot be empty' });
+        return;
+      }
+      
+      const newMessage = await createMessage(chatId, socket.user.id, content, messageType, attachments, replyTo);
+
+      const populatedMessage = await MessageModel.findById(newMessage._id)
+        .populate('sender', 'username _id profileImage')
+        .populate({
+          path: 'replyTo',
+          populate: { path: 'sender', select: 'username _id profileImage' },
+        });
+
+      io.to(chatId).emit('newMessage', populatedMessage);
+
+      if (callback) callback({ success: true, messageId: populatedMessage._id });
+    } catch (error) {
+      console.error('Error in sendMessage:', error);
+      socket.emit('error', { message: 'Failed to send message' });
+      if (callback) callback({ success: false, error: 'Failed to send message' });
     }
-    
-    if (!content || content.trim() === '') {
-      if (callback) callback({ success: false, error: 'Message content cannot be empty' });
-      return;
-    }
-    
-    const newMessage = await createMessage(chatId, socket.user.id, content, messageType, attachments, replyTo);
-
-    const populatedMessage = await MessageModel.findById(newMessage._id)
-      .populate('sender', 'username _id profileImage')
-      .populate({
-        path: 'replyTo',
-        populate: { path: 'sender', select: 'username _id profileImage' },
-      });
-
-    io.to(chatId).emit('newMessage', populatedMessage);
-
-    if (callback) callback({ success: true, messageId: populatedMessage._id });
-  } catch (error) {
-    console.error('Error in sendMessage:', error);
-    socket.emit('error', { message: 'Failed to send message' });
-    if (callback) callback({ success: false, error: 'Failed to send message' });
-  }
-});
+  });
 
   socket.on('typing', ({ chatId, isTyping }) => {
     socket.to(chatId).emit('userTyping', {
@@ -159,7 +189,7 @@ socket.on('sendMessage', async ({ chatId, content, messageType = 'text', attachm
     }
   });
 
-  socket.on("deleteMessage", async ({ messageId }) => {
+  socket.on("deleteMessage", async ({ messageId, chatId }) => {
     try {
       await MessageModel.findByIdAndDelete(messageId);
       socket.to(chatId).emit("messageDeleted", { messageId });
