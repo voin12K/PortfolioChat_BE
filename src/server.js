@@ -47,11 +47,11 @@ const server = http.createServer(app);
 
 const io = socketIo(server, {
   cors: {
-origin: "https://portfolio-chat-maebeklkw-voin12ks-projects.vercel.app",
-
+    origin: "*", // Разрешить любые источники
     methods: ["GET", "POST"]
   }
 });
+
 
 const socketAuthMiddleware = async (socket, next) => {
   try {
