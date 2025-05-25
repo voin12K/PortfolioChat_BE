@@ -10,7 +10,7 @@ const cors = require('cors');
 
 
 const corsOptions = {
-    origin: process.env.CLIENT_URL || ['https://chat-opal-eta.vercel.app'],
+    origin: process.env.CLIENT_URL || ['https://chat1-six-alpha.vercel.app/'],
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true, 
 };
