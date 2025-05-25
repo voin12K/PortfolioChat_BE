@@ -13,9 +13,10 @@ const PORT = 5000;
 const MONGO_URI = 'mongodb+srv://vladleurda02:ree1IndvHO3ZPgOs@main.n0hck.mongodb.net/test?retryWrites=true&w=majority&appName=main';
 const ALLOWED_ORIGINS = [
   'http://localhost:3000',
-  'https://portfolio-chat-1cm4jjrih-voin12ks-projects.vercel.app',
   'https://portfolio-chat-fe-mu.vercel.app',
-  'https://portfolio-chat-fe-7si8.vercel.app'
+  'https://portfolio-chat-fe-7si8.vercel.app',
+  'https://portfolio-chat-1cm4jjrih-voin12ks-projects.vercel.app',
+  'https://portfolio-chat-fe.vercel.app' 
 ];
 
 const connectDB = async () => {
@@ -45,9 +46,10 @@ const server = http.createServer(app);
 
 const io = socketIo(server, {
   cors: {
-    origin: ALLOWED_ORIGINS,
+    origin: allowedOrigins,
     methods: ["GET", "POST"],
-    credentials: true
+    credentials: true,
+    allowedHeaders: ["Authorization", "Content-Type"]
   }
 });
 
