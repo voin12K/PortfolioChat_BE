@@ -15,7 +15,7 @@ const JWT_SECRET = process.env.JWT_SECRET || '12345';
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://vladleurda02:ree1IndvHO3ZPgOs@main.n0hck.mongodb.net/test?retryWrites=true&w=majority&appName=main';
 
-// Настроим список разрешённых фронтендов (укажи свои домены)
+// Разрешённые домены фронтенда
 const allowedOrigins = [
   'https://portfolio-chat-fe-mu.vercel.app',
   'https://portfolio-chat-fe-7si8.vercel.app',
@@ -25,11 +25,11 @@ const allowedOrigins = [
 // CORS для Express
 const corsOptions = {
   origin: function(origin, callback) {
-    if (!origin) return callback(null, true); // для запросов из Postman, curl и т.п.
+    if (!origin) return callback(null, true); // для серверных запросов, curl, Postman и т.п.
     if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
+      callback(null, true);
     } else {
-      return callback(new Error('Not allowed by CORS'));
+      callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true,
@@ -37,7 +37,7 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions)); // для preflight OPTIONS запросов
+app.options('*', cors(corsOptions)); // preflight OPTIONS запросы
 
 // Подключение к базе
 const connectDB = async () => {
@@ -79,9 +79,9 @@ const io = socketIo(server, {
   }
 });
 
-// Socket.io аутентификация
+// Middleware аутентификации Socket.IO
 const socketAuthMiddleware = async (socket, next) => {
-  try {
+  try { 
     const token = socket.handshake.auth.token;
     if (!token) {
       return next(new Error('Authentication error: Token is missing'));
