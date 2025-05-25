@@ -47,7 +47,7 @@ const server = http.createServer(app);
  
 const io = socketIo(server, {
   cors: {
-    origin: process.env.CLIENT_URL || "https://chat-opal-eta.vercel.app",
+    origin: process.env.CLIENT_URL || "https://chat1-six-alpha.vercel.app/",
     credentials: true,
     methods: ["GET", "POST"]
   }
